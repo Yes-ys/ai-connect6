@@ -1,5 +1,6 @@
 package stud.g02;
 
+import core.board.Board;
 import core.board.PieceColor;
 import core.game.Game;
 import core.game.Move;
@@ -13,6 +14,9 @@ public class AI extends core.player.AI {
 	ArrayList<MovePro> moveOrder = new ArrayList<>();
 
 	@Override
+	public BoardPro getBoard() { return (BoardPro) board; }
+
+	@Override
 	public Move findNextMove(Move opponentMove) {
 		if (opponentMove == null) {
 			Move move = firstMove();
@@ -22,6 +26,7 @@ public class AI extends core.player.AI {
 			board.makeMove(opponentMove);
 		}
 
+		BoardPro board = getBoard();
 		bestMove = board.findwinMoves();
 		if (bestMove != null) {
 			board.makeMove(bestMove);
@@ -56,6 +61,7 @@ public class AI extends core.player.AI {
 		// depth为0，搜索达到最大深度还没有找到连续双威胁的情况，return false；
 		if (depth == 0)
 			return false;
+		BoardPro board = getBoard();
 		// 当我方行棋时
 		if (color == board.whoseMove()) {
 			// 如果对方对我方存在威胁，但是我方对对方没有威胁
@@ -100,6 +106,7 @@ public class AI extends core.player.AI {
 	}
 
 	public int alphaBeta(int alpha,int beta, int turn, int depth) {
+		BoardPro board = getBoard();
 		if (board.gameOver() || depth <= 0) {
 			//叶子结点返回评价值
 			int evaluateScore = RoadTable.evaluateChessScore(color, board.getRoadTable());
@@ -190,6 +197,5 @@ public class AI extends core.player.AI {
 	}
 
 	// 自己保有的棋盘
-	private BoardPro board = null;
 	PieceColor color;
 }

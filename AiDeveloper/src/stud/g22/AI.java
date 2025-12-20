@@ -12,7 +12,6 @@ import static core.game.Move.SIDE;
 import static stud.g22.Road.DIRECTION;
 
 public class AI extends core.player.AI {
-    private BoardPro board = null;
     PieceColor color; //自己棋子的颜色
     private Move myMove; //移动的动作
     private static final int mx_depth = 2; //alpha beta最大深度
@@ -39,6 +38,8 @@ public class AI extends core.player.AI {
         super.playGame(game);
         board = new BoardPro();
     }
+    @Override
+    public BoardPro getBoard() { return (BoardPro) board; }
 
     @Override
     public Move findNextMove(Move opponentMove) {
@@ -105,6 +106,7 @@ public class AI extends core.player.AI {
         boolean visit[] = new boolean[SIDE*SIDE];
         for (int i = 0; i < SIDE * SIDE; i++) visit[i] = false;
 
+        BoardPro board = getBoard();
         //计算的是color的对手的颜色路，所有的四路和五路
         if (color == BLACK) {
             fourList = board.roadTable.getBwRoads()[0][4];
@@ -191,6 +193,7 @@ public class AI extends core.player.AI {
         nodeList.clear();
 
         for (int i = 0; i < SIDE * SIDE; i++) visable[i] = false;
+        BoardPro board = getBoard();
         //可能的点 所在的路
         if(board.whoseMove() == BLACK){
             twoList = board.roadTable.getBwRoads()[2][0];
@@ -248,6 +251,7 @@ public class AI extends core.player.AI {
     public MovePro canWin(){
         MovePro move = null;
 
+        BoardPro board = getBoard();
         Road winRoad = board.roadTable.findColorWin(board.whoseMove());
         if (winRoad != null){
             System.out.println("win!");
@@ -286,6 +290,7 @@ public class AI extends core.player.AI {
         int choose_num = Math.min(WIDTH, nodesList.size() / 2);
         int index = 0;
 
+        BoardPro board = getBoard();
         for(Node node: nodesList){
             for (int i = ++index; i < choose_num; i++){
                 MovePro move = new MovePro(node.getPos(),  nodesList.get(i).getPos());
@@ -306,6 +311,7 @@ public class AI extends core.player.AI {
     }
 
     void addOne(RoadList la, RoadList lb){
+        BoardPro board = getBoard();
         for(int j = 0;  j < la.size(); j++){
             Road road = la.get(j);
             for (int i = 0; i < 6; i++) {
@@ -333,6 +339,7 @@ public class AI extends core.player.AI {
         int average,sum = 0,num=0;
         for(int i = 0; i <SIDE*SIDE;i++) visable[i] = false;
 
+        BoardPro board = getBoard();
         //对方的威胁
         if(board.whoseMove() == BLACK){
             fourList = board.roadTable.getBwRoads()[0][4];
@@ -414,6 +421,7 @@ public class AI extends core.player.AI {
     }
     //找出棋盘中未落子的地方
     void findblanks(){
+        BoardPro board = getBoard();
         for (int i = 0; i < SIDE * SIDE; i++){
             if (board.myBoard[i] > 0 && board.get(i) == EMPTY){
                 board.addRoads(i, board.whoseMove());
@@ -445,6 +453,7 @@ public class AI extends core.player.AI {
         ArrayList<MovePro> ansList = new ArrayList<>();
         nodeList.clear();
 
+        BoardPro board = getBoard();
         //对方的威胁
         if(board.whoseMove() == BLACK){
             fourList = board.roadTable.getBwRoads()[0][4];
@@ -518,6 +527,7 @@ public class AI extends core.player.AI {
         ArrayList<MovePro> ansList = new ArrayList<>();
         nodeList.clear();
 
+        BoardPro board = getBoard();
         //对方的威胁
         if(board.whoseMove() == BLACK){
             fourList = board.roadTable.getBwRoads()[0][4];
@@ -579,6 +589,7 @@ public class AI extends core.player.AI {
         if (depth == 0)
             return false;
 
+        BoardPro board = getBoard();
         // 该对方了
         if (color != board.whoseMove()) {
             // 堵不住我们捏，赢
@@ -621,6 +632,7 @@ public class AI extends core.player.AI {
     public int alphaBetaSearch(int alpha, int beta, int depth) {
         int value, best = -Integer.MAX_VALUE;
 
+        BoardPro board = getBoard();
         if (board.gameOver() || depth <= 0) {
             return RoadTable.valueEstimate(color, board.getRoadTable(),XS);
         }

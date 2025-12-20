@@ -17,7 +17,6 @@ public class AI extends core.player.AI {
 		super.playGame(game);
 		board = new BoardPro();
 	}
-	private BoardPro board = null;
 	PieceColor color;
 
 	private static final int MAX_DEPTH = 3;
@@ -25,6 +24,9 @@ public class AI extends core.player.AI {
 
 	public AI() {
 	}
+
+	@Override
+	public BoardPro getBoard() { return (BoardPro) board; }
 
 	@Override
 	public Move findNextMove(Move opponentMove) {
@@ -36,7 +38,7 @@ public class AI extends core.player.AI {
 			board.makeMove(opponentMove);
 		}
 
-		bestMove = board.findwinMoves();
+		bestMove = getBoard().findwinMoves();
 		if (bestMove != null) {
 			board.makeMove(bestMove);
 			return bestMove;
@@ -56,7 +58,7 @@ public class AI extends core.player.AI {
 		alphaBeta(-Integer.MAX_VALUE, Integer.MAX_VALUE,1, MAX_DEPTH);
 
 		if (bestMove == null) {
-			ArrayList<MovePro> moves = board.findGenerateMoves();
+			ArrayList<MovePro> moves = getBoard().findGenerateMoves();
 			moves.sort(MovePro.scoreComparator);
 			bestMove = moves.get(0);
 		}
@@ -67,6 +69,7 @@ public class AI extends core.player.AI {
 	boolean DTSS(int depth) {
 		if (depth == 0)
 			return false;
+		BoardPro board = getBoard();
 		if (color == board.whoseMove()) {
 			// 如果对方对我方存在威胁，但是我方对对方没有威胁
 			if (board.countAllThreats(color) > 0 && board.countAllThreats(color.opposite()) == 0)
@@ -105,6 +108,7 @@ public class AI extends core.player.AI {
 
 	public int alphaBeta(int alpha, int beta, int turn, int depth) {
 		//用评估函数来计算叶子结点的得分
+		BoardPro board = getBoard();
 		if (board.gameOver() || depth <= 0) {
 			int evaluateScore = stud.g12.RoadTable.evaluateChessStatus(color, board.getRoadTable());
 			return evaluateScore;
