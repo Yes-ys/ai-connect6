@@ -1,294 +1,194 @@
 package stud.g02;
 
-import core.board.Board;
 import core.board.PieceColor;
 import core.game.Game;
 import core.game.Move;
+
 import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
 
 public class AI extends core.player.AI {
-    private int steps = 0;
-    private int[] nextStep = new int[]{0, 0};
-    private int method = 1; // 1 : alpha-beta, 2 : TBS, 3 : Monte Carlo
+	// æœç´¢çš„æ·±åº¦
+	private static final int MAX_DEPTH = 3;
+	/* è®°å½•ä¸€ä¸‹è¡Œæ£‹çš„åºåˆ— */
+	ArrayList<MovePro> moveOrder = new ArrayList<>();
 
-    // todo: wlmrh
-    @Override
-    public Move findNextMove(Move opponentMove) {
-        this.board.makeMove(opponentMove);
-        Move nextMove;
-        if (canWin()){
-            nextMove = createMoveFromIndices(nextStep[0], nextStep[1]);
-            this.board.makeMove(nextMove);
-            return nextMove;
-        } else if (needDefence()) {
-            nextMove = createMoveFromIndices(nextStep[0], nextStep[1]);
-            this.board.makeMove(nextMove);
-            return nextMove;
-        }
+	@Override
+	public Move findNextMove(Move opponentMove) {
+		if (opponentMove == null) {
+			Move move = firstMove();
+			board.makeMove(move);
+			return move;
+		} else {
+			board.makeMove(opponentMove);
+		}
 
-        if (Search(2) != 2){
-            System.out.println("Find next move failed.\n");
-            return createMoveFromIndices(0, 0);
-        }
+		bestMove = board.findwinMoves();
+		if (bestMove != null) {
+			board.makeMove(bestMove);
+			return bestMove;
+		}
 
-        nextMove = createMoveFromIndices(nextStep[0], nextStep[1]);
-        this.board.makeMove(nextMove);
-        return nextMove;
-    }
+		// è®°å½•æˆ‘æ–¹é¢œè‰²
+		color = board.whoseMove();
+		// å› ä¸ºæœ‰findwinmovesçš„åŸå›  æ‰€ä»¥ä»æœç´¢åˆ°ç¬¬ä¸‰å±‚å¼€å§‹
+		moveOrder.clear();
+		for (int i = 3; i <= 27; i += 2) {
+			if (DTSS(i)) {
+				board.makeMove(bestMove);
 
-    // ·µ»Øµ±Ç°Æå¾ÖÏÂÊÇ·ñÄÜÖ±½Ó»ñÊ¤
-    // Èç¹û¿ÉÒÔ£¬½«Ñ¡ÔñµÄÁ½¸öÎ»ÖÃË÷ÒıĞ´µ½ nextMove ÖĞ
-    private boolean canWin() {
-        PieceColor myColor = this.getBoard().whoseMove(); // µ±Ç°ÆåÊÖ
-        PieceColor[] cells = board.get_board(); // µ±Ç°ÆåÅÌ
-        int[][] directions = Board.FORWARD; // ËùÓĞ¿ÉÄÜµÄÁùÁ¬·½Ïò
+				return bestMove;
+			}
+		}
 
-        for (int i = 0; i < 361; i++) {
-            int col = i % 19;
-            int row = i / 19;
+		alphaBeta(-Integer.MAX_VALUE, Integer.MAX_VALUE,1, MAX_DEPTH);
 
-            for (int[] dir : directions) {
-                List<Integer> emptyIndices = new ArrayList<>();
-                int sameColor = 0;
-                boolean valid = true;
+		if (bestMove == null) {
+			//éšæ„åœ¨æ£‹ç›˜ä¸Šæ‰¾ä½ç½®ï¼Œç„¶åå¯¹æ¯ä¸ªä½ç½®è¿›è¡Œæ’åº
+			ArrayList<MovePro> moves = board.findGenerateMoves();
+			moves.sort(MovePro.scoreComparator);
+			bestMove = moves.get(0);
+		}
+		board.makeMove(bestMove);
+		return bestMove;
+	}
 
-                for (int k = 0; k < 6; k++) {
-                    int c = col + dir[0] * k;
-                    int r = row + dir[1] * k;
-                    if (c < 0 || c >= 19 || r < 0 || r >= 19) {
-                        valid = false;
-                        break;
-                    }
-                    int idx = r * 19 + c;
-                    PieceColor p = cells[idx];
+	boolean DTSS(int depth) {
+		// depthä¸º0ï¼Œæœç´¢è¾¾åˆ°æœ€å¤§æ·±åº¦è¿˜æ²¡æœ‰æ‰¾åˆ°è¿ç»­åŒå¨èƒçš„æƒ…å†µï¼Œreturn falseï¼›
+		if (depth == 0)
+			return false;
+		// å½“æˆ‘æ–¹è¡Œæ£‹æ—¶
+		if (color == board.whoseMove()) {
+			// å¦‚æœå¯¹æ–¹å¯¹æˆ‘æ–¹å­˜åœ¨å¨èƒï¼Œä½†æ˜¯æˆ‘æ–¹å¯¹å¯¹æ–¹æ²¡æœ‰å¨èƒ
+			if (board.countAllThreats(color) > 0 && board.countAllThreats(color.opposite()) == 0)
+				return false;
 
-                    if (p == myColor) {
-                        sameColor++;
-                    } else if (p == PieceColor.EMPTY) {
-                        emptyIndices.add(idx);
-                    } else {
-                        valid = false;
-                        break;
-                    }
-                }
+			// æ‰¾åˆ°æˆ‘æ–¹è¡Œæ£‹æˆä¸ºåŒå¨èƒçš„æ‰€æœ‰ç€æ³•
+			ArrayList<MovePro> movesList = board.findDoubleThreats();
+			for (MovePro move : movesList) {
+				board.makeMove(move);
+				moveOrder.add(move);
+				boolean flag = DTSS(depth - 1);
+				moveOrder.remove(moveOrder.size() - 1);
+				board.undoMove(move);
+				// æ ¹æ®ç®—æ³•ï¼Œå­˜åœ¨å³å¯è¿”å›true
+				if (flag)
+					return true;
+			}
+			return false;
+		}
+		// å¯¹æ–¹è¡Œæ£‹æ—¶
+		else {
+			// å¦‚æœå µä¸ä½æˆ‘æ–¹å¯¹äºå¯¹æ–¹çš„å¨èƒ
+			if (board.countAllThreats(board.whoseMove()) >= 3) {
+				bestMove = moveOrder.get(0);
+				return true;
+			}
+			// æ‰¾åˆ°å¯¹æ–¹ç”¨æ¥å µçš„æ‰€æœ‰ç€æ³•
+			ArrayList<MovePro> movesList = board.findDoubleBlocks();
+			for (MovePro move : movesList) {
+				board.makeMove(move);
+				moveOrder.add(move);
+				boolean flag = DTSS(depth - 1);
+				moveOrder.remove(moveOrder.size() - 1);
+				board.undoMove(move);
+				// æ ¹æ®ç®—æ³•ï¼Œå¿…é¡»å…¨éƒ¨å¯ä»¥å‡ºç°åŒå¨èƒï¼Œå¦åˆ™ æœç´¢å¤±è´¥
+				if (!flag)
+					return false;
+			}
+			return true;
+		}
+	}
 
-                if (valid) {
-                    if (sameColor >= 4) {
-                        nextStep[0] = emptyIndices.get(0);
-                        // Èç¹ûĞÎ³ÉÒ»¸öËÄÁ¬£¬ÔòÌîÕâÁ½¸ö¹Ø¼üµã£»Èç¹ûĞÎ³ÉÒ»¸öÎåÁ¬£¬Ìîµ±Ç°¹Ø¼üµãºÍÈÎÒâÒ»¸öÆäËûµã
-                        nextStep[1] = (emptyIndices.size() > 1) ? emptyIndices.get(1) : getAnyEmpty(nextStep[0]);
-                        return true;
-                    }
-                }
-            }
-        }
-        return false;
-    }
+	public int alphaBeta(int alpha,int beta, int turn, int depth) {
+		if (board.gameOver() || depth <= 0) {
+			//å¶å­ç»“ç‚¹è¿”å›è¯„ä»·å€¼
+			int evaluateScore = RoadTable.evaluateChessScore(color, board.getRoadTable());
+			return evaluateScore;
+		}
+		ArrayList<MovePro> moves = null;
+		int threats = board.countAllThreats(board.whoseMove());
+		if (threats == 0) {
+			//å¯¹æ–¹å¯¹è‡ªå·±æ²¡æœ‰å¨èƒï¼Œæ‰¾ä¸€æ­¥å¯¹è‡ªå·±æœ€ä¼˜çš„æ£‹ä¸‹
+			moves = board.findGenerateMoves();
+		} else if (threats == 1) {
+			//å¯¹æ–¹å¯¹è‡ªå·±æœ‰å•å¨èƒï¼Œéœ€è¦è¿›è¡Œå•å¨èƒé˜²å¾¡
+			moves = board.findSingleBlocks();
+		} else if (threats == 2) {
+			//å¯¹æ–¹å¯¹è‡ªå·±æœ‰åŒå¨èƒï¼Œéœ€è¦è¿›è¡ŒåŒå¨èƒé˜²å¾¡
+			moves = board.findDoubleBlocks();
+		} else {
+			//å¯¹æ–¹å¯¹è‡ªå·±æœ‰ä¸‰å¨èƒï¼Œéœ€è¦è¿›è¡Œä¸‰å¨èƒé˜²å¾¡
+			moves = board.findTripleBlocks();
+		}
 
-    /**
-     * ÅĞ¶ÏÊÇ·ñĞèÒª·ÀÊØ¡£
-     * ²ßÂÔ£º
-     * 1. É¨ÃèÈ«ÅÌÍşĞ²¡£
-     * 2. Èç¹ûÎŞÍşĞ² -> return false¡£
-     * 3. Èç¹ûµ¥×ÓÄÜÈ«·À×¡ -> nextMove[0]=·ÀÊØµã, nextMove[1]=Search(1) -> return true¡£
-     * 4. Èç¹ûµ¥×Ó·À²»×¡ -> ±©Á¦ËÑË÷×î¼ÑÁ½×Ó·ÀÓù×éºÏ -> nextMove[0/1]=×î¼Ñµã¶Ô -> return true¡£
-     */
-    private boolean needDefence() {
-        List<List<Integer>> allThreats = getAllThreatLines();
+		//è½®åˆ°è‡ªå·±ä¸‹æ£‹
+		if (turn == 1){
+			// å¯å‘å¼æ’åº
+			int tAlpha;
+			moves.sort(MovePro.scoreComparator);
+			for (MovePro move : moves) {
+				board.makeMove(move);
+				tAlpha = alphaBeta(alpha, beta,0, depth - 1);
+				board.undoMove(move);
 
-        if (allThreats.isEmpty()) {
-            return false;
-        }
+				//å­èŠ‚ç‚¹çš„beta > alphaï¼Œæ›´æ–°
+				if (tAlpha > alpha){
+					alpha = tAlpha;
+					if (depth == MAX_DEPTH){
+						board.makeMove(move);
+						color = color.opposite();
+						moveOrder.clear();
+						// åŠ ä¸€æ­¥åå‘DTSSæœç´¢ é˜²æ­¢è‡ªå·±é˜²å¾¡å¤±è¯¯
+						if (!DTSS(7)) {
+							bestMove = move;
+						}
+						color = color.opposite();
+						board.undoMove(move);
+					}
+				}
+				//betaå‰ªæ
+				if (alpha >= beta){
+					return beta;
+				}
+			}
+			return alpha;
+		} else {
+			//min
+			// å¯å‘å¼æ’åº
+			int tBeta;
+			moves.sort(MovePro.scoreComparator);
+			for (MovePro move : moves) {
+				board.makeMove(move);
+				tBeta = alphaBeta(alpha, beta,1, depth - 1);
+				board.undoMove(move);
+				if (beta > tBeta){
+					beta = tBeta;
+				}
+				//alphaå‰ªæ
+				if (alpha >= beta){
+					return alpha;
+				}
+			}
+			return beta;
+		}
+	}
 
-        // Ñ°ÕÒÄÜ¸²¸Ç×î¶àÍşĞ²µÄµ¥µã
-        int bestSinglePoint = findBestSinglePoint(allThreats);
 
-        // ¼ì²éÕâ¸öµãÊÇ·ñ¸²¸ÇÁËËùÓĞÍşĞ²
-        if (coversAllThreats(bestSinglePoint, allThreats)) {
-            // Ò»ÊÖÆå¾ÍÄÜ·ÀÊØ×¡
-            nextStep[0] = bestSinglePoint;
+	private Move bestMove;
 
-            if (Search(1) == 0) {
-                nextStep[1] = getAnyEmpty(nextStep[0]);
-            }
+	@Override
+	public String name() {
+		// TODO Auto-generated method stub
+		return "stud.g02 AlphaCatV3";
+	}
 
-        } else {
-            // ±ØĞëÁ½²½ÆåÈ«²¿ÓÃÓÚ·ÀÊØ
-            // ÆôÓÃ±©Á¦Ã¶¾Ù£¬Ñ°ÕÒ¸²¸ÇÂÊ×î¸ßµÄ·ÀÓùµã¶Ô
-            int[] pair = getBestPairBruteForce(allThreats);
-            nextStep[0] = pair[0];
-            nextStep[1] = pair[1];
-        }
-        return true;
-    }
+	@Override
+	public void playGame(Game game) {
+		super.playGame(game);
+		board = new BoardPro();
+	}
 
-    // ¸¨Öúº¯Êı
-    private int[] getBestPairBruteForce(List<List<Integer>> threats) {
-        // ½«ËùÓĞÍşĞ²µãÌáÈ¡µ½ candidates
-        Set<Integer> candidates = new HashSet<>();
-        for (List<Integer> line : threats) {
-            candidates.addAll(line);
-        }
-        List<Integer> candidateList = new ArrayList<>(candidates);
-
-        if (candidateList.size() < 2) {
-            System.out.println("Can't defend with one step, but only have one candidate.\n");
-            return new int[]{candidateList.get(0), getAnyEmpty(candidateList.get(0))};
-        }
-
-        int[] bestPair = new int[2];
-        int maxCovered = -1;
-
-        for (int i = 0; i < candidateList.size(); i++) {
-            for (int j = i + 1; j < candidateList.size(); j++) {
-                int p1 = candidateList.get(i);
-                int p2 = candidateList.get(j);
-
-                int covered = countCovered(threats, p1, p2);
-
-                if (covered > maxCovered) {
-                    maxCovered = covered;
-                    bestPair[0] = p1;
-                    bestPair[1] = p2;
-
-                    if (maxCovered == threats.size()) {
-                        return bestPair;
-                    }
-                }
-            }
-        }
-        return bestPair;
-    }
-
-    private List<List<Integer>> getAllThreatLines() {
-        List<List<Integer>> lines = new ArrayList<>();
-        PieceColor oppColor = this.getBoard().whoseMove().opposite();
-        PieceColor[] cells = board.get_board();
-        int[][] directions = Board.FORWARD;
-
-        for (int i = 0; i < 361; i++) {
-            int col = i % 19;
-            int row = i / 19;
-            for (int[] dir : directions) {
-                List<Integer> emptyIndices = new ArrayList<>();
-                int oppCount = 0;
-                boolean valid = true;
-
-                for (int k = 0; k < 6; k++) {
-                    int c = col + dir[0] * k;
-                    int r = row + dir[1] * k;
-                    if (c < 0 || c >= 19 || r < 0 || r >= 19) {
-                        valid = false; break;
-                    }
-                    int idx = r * 19 + c;
-                    if (cells[idx] == oppColor) oppCount++;
-                    else if (cells[idx] == PieceColor.EMPTY) emptyIndices.add(idx);
-                    else { valid = false; break; }
-                }
-
-                if (valid && oppCount >= 4) {
-                    lines.add(emptyIndices);
-                }
-            }
-        }
-        return lines;
-    }
-
-    private int findBestSinglePoint(List<List<Integer>> threats) {
-        int[] scores = new int[361];
-        int bestIdx = -1;
-        int maxScore = -1;
-
-        for (List<Integer> line : threats) {
-            // ³åÎåÊ±£¬½«È¨ÖØµ÷ÕûÎªÕıÎŞÇî£¬ÓÅÏÈ´¦Àí
-            int weight = (line.size() == 1) ? 100 : 1;
-            for (int idx : line) {
-                scores[idx] += weight;
-                if (scores[idx] > maxScore) {
-                    maxScore = scores[idx];
-                    bestIdx = idx;
-                }
-            }
-        }
-        if (bestIdx == -1 && !threats.isEmpty()) return threats.get(0).get(0);
-        return bestIdx;
-    }
-
-    private boolean coversAllThreats(int p1, List<List<Integer>> threats) {
-        for (List<Integer> line : threats) {
-            if (!line.contains(p1)) return false;
-        }
-        return true;
-    }
-
-    private int countCovered(List<List<Integer>> threats, int p1, int p2) {
-        int count = 0;
-        for (List<Integer> line : threats) {
-            if (line.contains(p1) || line.contains(p2)) {
-                count++;
-            }
-        }
-        return count;
-    }
-
-    // ·µ»Øµ±Ç°ÆåÅÌÉÏ³ıÁË avoidIdx Ë÷ÒıÍâµÄÈÎÒâÒ»¸ö EMTPY Î»ÖÃË÷Òı
-    // Èç¹ûÃ»ÓĞÕÒµ½£¬·µ»Ø -1
-    private int getAnyEmpty(int avoidIdx) {
-        PieceColor[] cells = board.get_board();
-        // ÓÅÏÈÕÒ avoidIdx ÖÜÎ§µÄ¿ÕÎ»
-        int[] nearby = {-1, 1, -19, 19, -20, 20, -18, 18};
-        for (int offset : nearby) {
-            int target = avoidIdx + offset;
-            if (target >= 0 && target < 361 && cells[target] == PieceColor.EMPTY) {
-                return target;
-            }
-        }
-
-        for (int i = 0; i < 361; i++) {
-            if (i != avoidIdx && cells[i] == PieceColor.EMPTY) return i;
-        }
-        return -1;
-    }
-
-    // ¸ø¶¨µ±Ç°Á½²½ÆåÑ¡ÔñµÄÎ»ÖÃË÷Òı£¬·µ»Ø¶ÔÓ¦µÄ Move ¶ÔÏó
-    private Move createMoveFromIndices(int idx1, int idx2) {
-        char c1 = indexToCol(idx1);
-        char r1 = indexToRow(idx1);
-        char c2 = indexToCol(idx2);
-        char r2 = indexToRow(idx2);
-        return new Move(c1, r1, c2, r2);
-    }
-
-    private char indexToCol(int index) {
-        int val = index % 19;
-        return (char) ('A' + val + (val >= 8 ? 1 : 0));
-    }
-
-    private char indexToRow(int index) {
-        int val = index / 19;
-        return (char) ('A' + val + (val >= 8 ? 1 : 0));
-    }
-
-    // todo: hethtina
-    // type ±íÊ¾ Search ĞèÒªÉú³ÉµÄ²½Êı(1 / 2)
-    // ½«Ñ¡ÔñÎ»ÖÃµÄË÷ÒıĞ´µ½ nextMove Êı×éÖĞ
-    // type = 1Ê±£¬½«´ğ°¸Ğ´µ½ nextMove[1] ÖĞ
-    // ·µ»Ø³É¹¦Éú³ÉµÄ²½Êı
-    private int Search(int type){
-        return 1;
-    }
-
-    public String name() {
-        return "G02";
-    }
-
-    @Override
-    public void playGame(Game game) {
-        super.playGame(game);
-        board = new Board();
-        steps = 0;
-    }
+	// è‡ªå·±ä¿æœ‰çš„æ£‹ç›˜
+	private BoardPro board = null;
+	PieceColor color;
 }
